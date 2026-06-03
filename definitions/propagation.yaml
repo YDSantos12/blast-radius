@@ -1,0 +1,154 @@
+propagation:
+  # ── Entries used by the engine ─────────────────────────────────────────
+  # Keys must match what propagation.py reads via prop_defs.get(key)
+
+  runner_registration:
+    id: sha1hulud_runner
+    display_name: "Runner GitHub Actions Malicioso (SHA1HULUD)"
+    severity: CRITICAL
+    indicators:
+      files:
+        - "**/.runner"
+        - "**/_diag/Runner_*.log"
+        - "**/.actions-runner/.runner"
+      suspicious_names:
+        - "SHA1HULUD"
+        - "sha1hulud"
+        - "sha-1-hulud"
+    description: >
+      Runner self-hosted com nome SHA1HULUD — artefato direto do
+      Shai-Hulud 2.0. Fornece execução remota de comandos via
+      GitHub Actions enquanto registrado.
+    recommended_action: >
+      Remover runner imediatamente nas configurações do
+      repositório/organização. Auditar todos os workflow runs
+      executados neste runner. Assumir secrets dos workflows
+      comprometidos.
+    reference: "Shai-Hulud 2.0 — persistência via self-hosted runner"
+
+  workflow_injection:
+    id: discussion_workflow
+    display_name: "Workflow Malicioso Injetado (discussion.yaml)"
+    severity: CRITICAL
+    indicators:
+      files:
+        - "**/.github/workflows/discussion.yaml"
+        - "**/.github/workflows/discussion.yml"
+    description: >
+      Workflow discussion.yaml — mecanismo de persistência do
+      Shai-Hulud 2.0. Execução de comandos arbitrários via eventos
+      de Discussion no GitHub.
+    recommended_action: >
+      Remover arquivo imediatamente. Revisar todos os runs.
+      Verificar acesso a secrets do repositório.
+      Revogar tokens com acesso ao repositório.
+    reference: "Shai-Hulud 2.0 — discussion.yaml como persistência"
+
+  npm_publish:
+    id: npm_publish_incident
+    display_name: "Publicação npm na Janela do Incidente"
+    severity: HIGH
+    indicators: {}
+    description: >
+      Pacote npm publicado durante a janela do incidente.
+      Compromete outros desenvolvedores ao instalar o pacote.
+    recommended_action: >
+      Deprecar ou despublicar imediatamente.
+      Notificar consumidores do pacote via npm advisory.
+      Rotacionar o token npm usado para publicação.
+    reference: "Shai-Hulud V1/V2 — publicação de pacotes comprometidos"
+
+  exfil_repo:
+    id: exfil_repo_shaihulud
+    display_name: "Repositório de Exfiltração (Shai-Hulud)"
+    severity: CRITICAL
+    indicators:
+      suspicious_names:
+        - "Shai-Hulud"
+        - "Sha1-Hulud"
+        - "SHA1HULUD"
+        - "Second Coming"
+    description: >
+      Repositório público com padrão de nome do Shai-Hulud.
+      Credenciais roubadas commitadas em Base64 duplo —
+      publicamente expostas.
+    recommended_action: >
+      Deletar imediatamente. Assumir conteúdo público.
+      Revogar todas as credenciais encontradas no repositório.
+    reference: "Shai-Hulud 2.0 — exfiltração via repos públicos"
+
+  git_hook:
+    id: git_hook_malicious
+    display_name: "Git Hook Não-Padrão em Repositório Local"
+    severity: MEDIUM
+    indicators:
+      files:
+        - "**/.git/hooks/pre-commit"
+        - "**/.git/hooks/post-commit"
+        - "**/.git/hooks/pre-push"
+        - "**/.git/hooks/post-checkout"
+    description: >
+      Hook git executável além dos .sample padrão.
+      Pode executar código malicioso em operações git normais.
+    recommended_action: >
+      Inspecionar conteúdo. Remover se malicioso.
+      Verificar histórico de commits recentes.
+    reference: "TrapDoor (mai/2026) — persistência via git hooks"
+
+  # ── Additional documented patterns ────────────────────────────────────
+  # Not currently read by the engine — reserved for future use
+
+  exfil_repo_random:
+    id: exfil_repo_random
+    display_name: "Repositório com Nome Aleatório (Exfiltração)"
+    severity: HIGH
+    indicators:
+      files: []
+      suspicious_names: []
+    description: >
+      Repositório com 16-20 caracteres aleatórios criado
+      recentemente — padrão de exfiltração automatizada do
+      Shai-Hulud 2.0.
+    recommended_action: >
+      Verificar conteúdo. Se Base64, deletar e assumir
+      exposição pública. Revogar credenciais possivelmente
+      expostas.
+    reference: "Shai-Hulud 2.0 — repos de exfiltração com nomes aleatórios"
+
+  trufflehog_cache:
+    id: trufflehog_cache
+    display_name: "Cache do TruffleHog"
+    severity: HIGH
+    indicators:
+      files:
+        - "**/.truffler-cache/**"
+        - "**/.trufflehog/**"
+    description: >
+      Cache do TruffleHog encontrado — usado pelo Shai-Hulud e
+      GlassWorm para varrer e exfiltrar segredos.
+      Indica varredura de segredos executada na máquina.
+    recommended_action: >
+      Assumir todos os segredos varridos como exfiltrados.
+      Executar revogação completa independentemente de outros
+      indicadores.
+    reference: >
+      Shai-Hulud V1/V2 e GlassWorm — TruffleHog como módulo
+      de coleta de segredos
+
+  npm_postinstall_modified:
+    id: npm_postinstall_modified
+    display_name: "Script postinstall Modificado (package.json)"
+    severity: HIGH
+    indicators:
+      files:
+        - "**/package.json"
+    description: >
+      package.json com postinstall modificado na janela do
+      incidente — vetor primário do Shai-Hulud e TrapDoor.
+      Compromete outros desenvolvedores ao instalar o pacote.
+    recommended_action: >
+      Inspecionar postinstall. Se injetado, verificar se o
+      pacote foi publicado com esse script.
+    reference: >
+      Shai-Hulud V1/V2 e TrapDoor — postinstall como vetor
+      de execução em supply chain attacks

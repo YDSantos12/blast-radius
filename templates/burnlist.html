@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLAST-RADIUS Burn List — {{ meta.hostname }}</title>
+<style>
+:root {
+  --bg:         #0a0a0a;
+  --bg-subtle:  #111111;
+  --bg-row:     #141414;
+  --border:     #2a2a2a;
+  --text:       #c9c9c9;
+  --text-dim:   #666666;
+  --text-label: #555555;
+  --red:        #c0392b;
+  --orange:     #b7600a;
+  --yellow:     #8a7200;
+  --green:      #2d6a2d;
+  --blue:       #2a5a8a;
+  --mono:       "Consolas", "Liberation Mono", "Courier New", monospace;
+  --sans:       -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+header {
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.meta-line {
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-word;
+}
+.content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+.prop-alert {
+  border-left: 2px solid var(--red);
+  padding: 8px 14px;
+  margin-bottom: 16px;
+}
+.prop-alert-title {
+  color: var(--red);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.prop-alert-body {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--sans);
+}
+.summary-line {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.disclaimer {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  font-family: var(--sans);
+  padding: 4px 0;
+  margin-bottom: 18px;
+}
+.section { margin-bottom: 22px; }
+.sec-marker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.sec-marker-text { white-space: nowrap; }
+.sec-marker-rule { flex: 1; height: 1px; background: var(--border); }
+.sm-revoke  .sec-marker-text { color: var(--red); }
+.sm-rotate  .sec-marker-text { color: var(--orange); }
+.sm-audit   .sec-marker-text { color: var(--yellow); }
+.sm-monitor .sec-marker-text { color: var(--text-dim); }
+.sm-prop    .sec-marker-text { color: var(--text-dim); }
+.cred-block {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cred-block:last-child { border-bottom: none; }
+.cred-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.cred-name-left {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cred-name-badges {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.cred-name  { color: var(--text); font-weight: 600; }
+.lbl-name   { color: var(--text-label); font-size: 12px; }
+.badge      { font-size: 11px; font-weight: 600; }
+.badge-revoke  { color: var(--red); }
+.badge-rotate  { color: var(--orange); }
+.badge-audit   { color: var(--yellow); }
+.badge-monitor { color: var(--green); }
+.badge-window  { color: var(--blue); }
+.badge-score   { color: var(--text-dim); }
+.row {
+  display: flex;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.lbl {
+  color: var(--text-label);
+  flex: 0 0 105px;
+}
+.val {
+  color: var(--text);
+  word-break: break-all;
+  flex: 1;
+}
+.val.dim { color: var(--text-dim); }
+.val.prose {
+  font-family: var(--sans);
+  word-break: normal;
+  overflow-wrap: break-word;
+  color: var(--text-dim);
+}
+.val a {
+  color: var(--blue);
+  text-decoration: none;
+}
+.val a:hover { text-decoration: underline; }
+.cmd-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.c-red  { color: var(--red); }
+.c-text { color: var(--text); }
+.c-dim  { color: var(--text-dim); }
+.copy-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+.copy-btn:hover { color: var(--text); }
+.prop-finding {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.prop-finding:last-child { border-bottom: none; }
+.prop-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.sev-CRITICAL { color: var(--red);    font-weight: 600; font-size: 12px; }
+.sev-HIGH     { color: var(--orange); font-weight: 600; font-size: 12px; }
+.sev-MEDIUM   { color: var(--yellow); font-weight: 600; font-size: 12px; }
+.prop-ftype   { color: var(--text); font-weight: 600; }
+.empty-state {
+  padding: 6px 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-style: italic;
+}
+.inv-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 8px;
+  display: block;
+}
+.inv-toggle:hover { color: var(--text); }
+.inv-wrap {
+  display: none;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+}
+#inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+#inventory-table th {
+  background: var(--bg-subtle);
+  color: var(--text-label);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 12px;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+#inventory-table th:hover { color: var(--text); }
+#inventory-table th.sort-asc::after  { content: " ^"; }
+#inventory-table th.sort-desc::after { content: " v"; }
+#inventory-table td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  color: var(--text-dim);
+}
+#inventory-table tbody tr:last-child td { border-bottom: none; }
+.tc-revoke  { color: var(--red); }
+.tc-rotate  { color: var(--orange); }
+.tc-audit   { color: var(--yellow); }
+.tc-monitor { color: var(--green); }
+footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 24px;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 16px;
+}
+@media print {
+  :root {
+    --bg:         #ffffff;
+    --bg-subtle:  #f5f5f5;
+    --bg-row:     #fafafa;
+    --border:     #cccccc;
+    --text:       #1a1a1a;
+    --text-dim:   #666666;
+    --text-label: #888888;
+    --red:        #b91c1c;
+    --orange:     #92400e;
+    --yellow:     #78350f;
+    --green:      #14532d;
+    --blue:       #1e3a5f;
+  }
+  body { background: #fff; }
+  .copy-btn,
+  .inv-toggle,
+  .inv-wrap { display: none !important; }
+  .cred-block { break-inside: avoid; page-break-inside: avoid; }
+  .prop-finding { break-inside: avoid; }
+  a { color: inherit; }
+}
+</style>
+</head>
+<body>
+
+{# ── MACRO: credential block ──────────────────────────────────────────────── #}
+{% macro render_card(item, tier_key) %}
+<div class="cred-block">
+  <div class="cred-name-row">
+    <div class="cred-name-left">
+      <span class="lbl-name">nome:</span>
+      <span class="cred-name">{{ item.display_name }}</span>
+    </div>
+    <div class="cred-name-badges">
+      <span class="badge badge-{{ tier_key }}">[{{ item.tier | tier_label }}]</span>
+      {% if item.in_incident_window %}<span class="badge badge-window">[NA JANELA]</span>{% endif %}
+      {% if item.correlation_score > 0 %}<span class="badge badge-score">[{{ item.correlation_score }}/4]</span>{% endif %}
+    </div>
+  </div>
+  <div class="row"><span class="lbl">tipo:</span><span class="val">{{ item.credential_type }}</span></div>
+  {% if item.paths %}
+  <div class="row"><span class="lbl">caminho:</span><span class="val">{% for p in item.paths %}{{ p }}{% if not loop.last %}<br>{% endif %}{% endfor %}</span></div>
+  {% endif %}
+  {% if item.value_redacted and item.value_redacted != 'N/A' %}
+  <div class="row"><span class="lbl">valor:</span><span class="val">{{ item.value_redacted }}</span></div>
+  {% endif %}
+  {% if item.found_at %}
+  <div class="row"><span class="lbl">encontrado:</span><span class="val dim">{{ item.found_at | datetime_br }}</span></div>
+  {% endif %}
+  {% if item.authority.display %}
+  <div class="row"><span class="lbl">autoridade:</span><span class="val prose">{{ item.authority.display }}</span></div>
+  {% endif %}
+  {% if item.authority.accessible_resources %}
+  <div class="row"><span class="lbl">recursos:</span><span class="val dim">{% for r in item.authority.accessible_resources %}{{ r }}{% if not loop.last %}<br>{% endif %}{% endfor %}</span></div>
+  {% endif %}
+  {% if item.tier_reason %}
+  <div class="row"><span class="lbl">motivo:</span><span class="val prose">{{ item.tier_reason }}</span></div>
+  {% endif %}
+  {% if item.correlation_notes %}
+  <div class="row"><span class="lbl">correlação:</span><span class="val dim">[{{ item.correlation_score }}/4] {% for note in item.correlation_notes %}{{ note }}{% if not loop.last %} / {% endif %}{% endfor %}</span></div>
+  {% endif %}
+  {% if item.revocation_url %}
+  <div class="row"><span class="lbl">{% if tier_key == 'revoke' %}revoke-url:{% else %}rotate-url:{% endif %}</span><span class="val"><a href="{{ item.revocation_url | safe_url }}" target="_blank" rel="noopener noreferrer">{{ item.revocation_url }}</a></span></div>
+  {% endif %}
+  {% if item.revocation_command %}
+  <div class="row"><span class="lbl">{% if tier_key == 'revoke' %}revoke-cmd:{% else %}rotate-cmd:{% endif %}</span><span class="val"><span class="cmd-line"><code>{{ item.revocation_command }}</code><button class="copy-btn" data-cmd="{{ item.revocation_command }}" onclick="copyCmd(this)">[copiar]</button></span></span></div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# ── HEADER ───────────────────────────────────────────────────────────────── #}
+<header>BLAST-RADIUS  //  Burn List  //  {{ meta.hostname }}</header>
+
+{# ── META LINE ────────────────────────────────────────────────────────────── #}
+<div class="meta-line">host:{{ meta.hostname }}&nbsp;&nbsp;usuário:{{ meta.username }}&nbsp;&nbsp;os:{{ (meta.os_version or meta.os) | default('—') }}&nbsp;&nbsp;coletado:{{ meta.collected_at | datetime_br }}&nbsp;&nbsp;janela:{{ incident_window_start | datetime_br }}{% if meta.window_defaulted %}&nbsp;<span style="font-style:italic">(defaulted)</span>{% endif %}&nbsp;&nbsp;análise:{{ generated_at | datetime_br }}&nbsp;&nbsp;[{{ resolution_method | upper }}]</div>
+
+<div class="content">
+
+{# ── PROPAGATION ALERT ────────────────────────────────────────────────────── #}
+{% if propagation.is_propagation_source %}
+<div class="prop-alert">
+  <div class="prop-alert-title">! PROPAGATION SOURCE DETECTED</div>
+  <div class="prop-alert-body">{{ propagation.summary }}{% if propagation.downstream_notification_required %}<br>Downstream notification required.{% endif %}</div>
+</div>
+{% endif %}
+
+{# ── SUMMARY LINE ─────────────────────────────────────────────────────────── #}
+<div class="summary-line">REVOGAR AGORA: <span class="{% if revoke_now | length > 0 %}c-red{% else %}c-dim{% endif %}">{{ revoke_now | length }}</span>&nbsp;&nbsp;|&nbsp;&nbsp;ROTACIONAR: <span class="{% if rotate | length > 0 %}c-text{% else %}c-dim{% endif %}">{{ rotate | length }}</span>&nbsp;&nbsp;|&nbsp;&nbsp;AUDITAR: <span class="{% if audit | length > 0 %}c-text{% else %}c-dim{% endif %}">{{ audit | length }}</span>&nbsp;&nbsp;|&nbsp;&nbsp;MONITORAR: <span class="{% if monitor | length > 0 %}c-text{% else %}c-dim{% endif %}">{{ monitor | length }}</span></div>
+
+{# ── DISCLAIMER ───────────────────────────────────────────────────────────── #}
+<p class="disclaimer">// {{ disclaimer }}</p>
+
+{# ── PROPAGATION FINDINGS ─────────────────────────────────────────────────── #}
+{% if propagation.findings %}
+<div class="section">
+  <div class="sec-marker sm-prop">
+    <span class="sec-marker-text">── PROPAGAÇÃO ({{ propagation.findings | length }})</span>
+    <span class="sec-marker-rule"></span>
+  </div>
+  {% for f in propagation.findings %}
+  <div class="prop-finding">
+    <div class="prop-top">
+      <span class="sev-{{ f.severity }}">[{{ f.severity }}]</span>
+      <span class="prop-ftype">{{ f.finding_type }}</span>
+    </div>
+    {% if f.description %}
+    <div class="row"><span class="lbl">descrição:</span><span class="val prose">{{ f.description }}</span></div>
+    {% endif %}
+    {% if f.path_or_url %}
+    <div class="row"><span class="lbl">caminho:</span><span class="val">{{ f.path_or_url }}</span></div>
+    {% endif %}
+    <div class="row"><span class="lbl">ação:</span><span class="val prose" style="color:var(--orange)">{{ f.recommended_action }}</span></div>
+    {% if f.reference %}
+    <div class="row"><span class="lbl">referência:</span><span class="val dim">{{ f.reference }}</span></div>
+    {% endif %}
+    {% if f.timestamp %}
+    <div class="row"><span class="lbl">timestamp:</span><span class="val dim">{{ f.timestamp | datetime_br }}</span></div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── REVOGAR AGORA ────────────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="sec-marker sm-revoke">
+    <span class="sec-marker-text">── REVOGAR AGORA ({{ revoke_now | length }})</span>
+    <span class="sec-marker-rule"></span>
+  </div>
+  {% if revoke_now %}
+    {% for item in revoke_now %}{{ render_card(item, 'revoke') }}{% endfor %}
+  {% else %}
+    <div class="empty-state">Nenhuma credencial neste tier.</div>
+  {% endif %}
+</div>
+
+{# ── ROTACIONAR ───────────────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="sec-marker sm-rotate">
+    <span class="sec-marker-text">── ROTACIONAR ({{ rotate | length }})</span>
+    <span class="sec-marker-rule"></span>
+  </div>
+  {% if rotate %}
+    {% for item in rotate %}{{ render_card(item, 'rotate') }}{% endfor %}
+  {% else %}
+    <div class="empty-state">Nenhuma credencial neste tier.</div>
+  {% endif %}
+</div>
+
+{# ── AUDITAR ──────────────────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="sec-marker sm-audit">
+    <span class="sec-marker-text">── AUDITAR ({{ audit | length }})</span>
+    <span class="sec-marker-rule"></span>
+  </div>
+  {% if audit %}
+    {% for item in audit %}{{ render_card(item, 'audit') }}{% endfor %}
+  {% else %}
+    <div class="empty-state">Nenhum item neste tier.</div>
+  {% endif %}
+</div>
+
+{# ── MONITORAR ────────────────────────────────────────────────────────────── #}
+<div class="section">
+  <div class="sec-marker sm-monitor">
+    <span class="sec-marker-text">── MONITORAR ({{ monitor | length }})</span>
+    <span class="sec-marker-rule"></span>
+  </div>
+  {% if monitor %}
+    {% for item in monitor %}{{ render_card(item, 'monitor') }}{% endfor %}
+  {% else %}
+    <div class="empty-state">Nenhuma credencial neste tier.</div>
+  {% endif %}
+</div>
+
+{# ── INVENTÁRIO COMPLETO ──────────────────────────────────────────────────── #}
+<div class="section">
+  <button class="inv-toggle" id="inventory-toggle" onclick="toggleInventory()">[ expandir inventário ] — {{ total_credentials }} credencial(ais)</button>
+  <div class="inv-wrap" id="inventory-wrap">
+    <table id="inventory-table">
+      <thead>
+        <tr>
+          <th onclick="sortTable(0)">Tipo</th>
+          <th onclick="sortTable(1)">Nome</th>
+          <th onclick="sortTable(2)">Tier</th>
+          <th onclick="sortTable(3)">Encontrado em</th>
+          <th onclick="sortTable(4)">Caminho</th>
+          <th onclick="sortTable(5)">Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in revoke_now + rotate + audit + monitor %}
+        <tr>
+          <td>{{ item.credential_type }}</td>
+          <td style="color:var(--text)">{{ item.display_name }}</td>
+          <td class="tc-{{ item.tier | tier_color }}">{{ item.tier | tier_label }}</td>
+          <td>{{ item.found_at | datetime_br }}</td>
+          <td style="word-break:break-all">{{ item.paths | join(' · ') }}</td>
+          <td>{{ item.correlation_score }}/4</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>{# /content #}
+
+{# ── FOOTER ───────────────────────────────────────────────────────────────── #}
+<footer>BLAST-RADIUS v{{ meta.collector_version or '—' }}  //  {{ generated_at | datetime_br }}  //  {{ total_credentials }} credencial(ais)  //  uso exclusivo em IR</footer>
+
+<script>
+function copyCmd(btn) {
+  var text = btn.getAttribute('data-cmd');
+  if (!text) return;
+  function done() {
+    btn.textContent = '[copiado]';
+    setTimeout(function() { btn.textContent = '[copiar]'; }, 2000);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(function() { fallback(text, done); });
+  } else {
+    fallback(text, done);
+  }
+}
+function fallback(text, done) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); done(); } catch(e) {}
+  document.body.removeChild(ta);
+}
+function toggleInventory() {
+  var wrap = document.getElementById('inventory-wrap');
+  var btn  = document.getElementById('inventory-toggle');
+  var open = wrap.style.display === 'block';
+  wrap.style.display = open ? 'none' : 'block';
+  btn.textContent    = open ? '[ expandir inventário ] — {{ total_credentials }} credencial(ais)' : '[ recolher ]';
+}
+var _sc = -1, _sa = true;
+function sortTable(col) {
+  var tbl   = document.getElementById('inventory-table');
+  var tbody = tbl.tBodies[0];
+  var rows  = Array.prototype.slice.call(tbody.rows);
+  _sa = (_sc === col) ? !_sa : true;
+  _sc = col;
+  rows.sort(function(a, b) {
+    var va = a.cells[col] ? a.cells[col].textContent.trim() : '';
+    var vb = b.cells[col] ? b.cells[col].textContent.trim() : '';
+    return _sa ? va.localeCompare(vb, 'pt-BR') : vb.localeCompare(va, 'pt-BR');
+  });
+  var ths = tbl.tHead.rows[0].cells;
+  for (var i = 0; i < ths.length; i++) {
+    ths[i].className = (i === col) ? (_sa ? 'sort-asc' : 'sort-desc') : '';
+  }
+  var frag = document.createDocumentFragment();
+  rows.forEach(function(r) { frag.appendChild(r); });
+  tbody.appendChild(frag);
+}
+</script>
+</body>
+</html>

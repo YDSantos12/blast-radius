@@ -1,0 +1,36 @@
+# ── Collector build artifacts ─────────────────────────────
+collector/dist/*.exe
+collector/dist/*.bin
+collector/dist/*.json
+
+# ── Collections and reports (contain forensic/sensitive data)
+collection-*.json
+**/collection-*.json
+engine/burnlist-*.html
+
+# ── Operational scripts (not part of public project)
+collector/dist/run-collector.ps1
+collector/dist/glassworm.vsix
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# ── Go ────────────────────────────────────────────────────
+*.test
+*.out
+
+# ── Claude Code internal ──────────────────────────────────
+.claude/
+CLAUDE.md
+
+# ── OS artifacts ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Lab temporary artifacts ───────────────────────────────
+blast-radius-lab-manifest.json
