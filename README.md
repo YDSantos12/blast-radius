@@ -89,7 +89,7 @@ Para compilar a partir do código-fonte:
 ### Collector (Go 1.22+)
 
 ```bash
-git clone https://github.com/<user>/blast-radius
+git clone https://github.com/YDSantos12/blast-radius
 cd blast-radius/collector
 go mod tidy
 ```
