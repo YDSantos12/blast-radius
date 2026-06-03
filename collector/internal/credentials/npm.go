@@ -125,9 +125,9 @@ func parseNpmrc(path string) []CredentialItem {
 		item := NewCredentialItem("npm_token", path, token)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
-			"registry":         registry,
-			"scope":            scope,
-			"has_publish_hint": hasPublishHint || !strings.Contains(token, "readonly"),
+			"registry":           registry,
+			"scope":              scope,
+			"has_publish_access": hasPublishHint,
 		}
 		items = append(items, item)
 	}

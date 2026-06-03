@@ -59,12 +59,14 @@ def _build_evidence(collection: dict, incident_window_start: str) -> Correlation
     file_events: list[dict] = []
 
     for event in events:
-        event_id = event.get("EventID") or event.get("event_id")
-        timestamp = event.get("TimeCreated") or event.get("timestamp", "")
+        # SysmonEvent schema: {event_id, time_utc, computer, fields: {Name: Value}}
+        event_id = event.get("event_id")
+        timestamp = event.get("time_utc", "")
+        fields = event.get("fields") or {}
 
         if event_id == 1:
-            parent = event.get("ParentImage", "")
-            child = event.get("Image", "")
+            parent = fields.get("ParentImage", "")
+            child = fields.get("Image", "")
             parent_base = _basename(parent)
             child_base = _basename(child)
             if (
@@ -75,10 +77,10 @@ def _build_evidence(collection: dict, incident_window_start: str) -> Correlation
                 suspicious_processes.append(f"{parent} → {child}")
 
         elif event_id == 3:
-            image = event.get("Image", "")
+            image = fields.get("Image", "")
             image_base = _basename(image)
-            dest_ip = event.get("DestinationIp", "")
-            dest_host = event.get("DestinationHostname", "")
+            dest_ip = fields.get("DestinationIp", "")
+            dest_host = fields.get("DestinationHostname", "")
             if (
                 any(p.lower() in image_base for p in ("node.exe", "python.exe", "code.exe"))
                 and _within_window(timestamp, incident_window_start)
@@ -89,7 +91,7 @@ def _build_evidence(collection: dict, incident_window_start: str) -> Correlation
                 network_egress.append({"image": image, "dest_ip": dest_ip, "dest_host": dest_host, "timestamp": timestamp})
 
         elif event_id == 11:
-            target_path = event.get("TargetFilename", "")
+            target_path = fields.get("TargetFilename", "")
             if (
                 _within_window(timestamp, incident_window_start)
                 and any(marker in target_path.lower() for marker in (".ssh", "github cli", ".aws", ".npm"))

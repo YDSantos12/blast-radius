@@ -53,7 +53,7 @@ A flag `-window` recebe o timestamp de início da janela do incidente em ISO 860
 ./blast-radius-collector-darwin-amd64 -verbose -window 2026-06-01T03:00:00Z
 ```
 
-Transferir o arquivo `collection-<hostname>-<timestamp>.json` para a máquina do analista via canal criptografado. O arquivo contém todas as variáveis de ambiente em texto claro.
+Transferir o arquivo `collection-<hostname>-<timestamp>.json` para a máquina do analista via canal criptografado. O arquivo contém todas as variáveis de ambiente em texto claro. URLs remotas de repositórios git com tokens embutidos (`https://TOKEN@github.com/...`) também são armazenadas sem redação para permitir a extração dos tokens pelo engine.
 
 ### Análise (na máquina do analista)
 

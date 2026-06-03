@@ -87,8 +87,15 @@ def analyze_propagation(collection: dict, definitions: dict) -> PropagationRepor
     workflow_injections = prop_data.get("workflow_injections") or []
 
     for injection in workflow_injections:
-        path = injection if isinstance(injection, str) else injection.get("path", str(injection))
-        ts = "" if isinstance(injection, str) else injection.get("timestamp", incident_window_start)
+        if isinstance(injection, str):
+            path = injection
+            ts = incident_window_start
+        else:
+            # WorkflowInject schema: repo_path, file, mtime, in_window, is_flagged
+            repo = injection.get("repo_path", "")
+            fname = _safe_filename(injection.get("file", ""))
+            path = f"{repo}/.github/workflows/{fname}" if repo else fname
+            ts = injection.get("mtime", incident_window_start)
         findings.append(PropagationFinding(
             finding_type="workflow_injection",
             severity="CRITICAL",
@@ -105,7 +112,8 @@ def analyze_propagation(collection: dict, definitions: dict) -> PropagationRepor
         repo_path = repo.get("path", "")
         for wf in (repo.get("workflow_files") or []):
             wf_name = wf if isinstance(wf, str) else wf.get("name", str(wf))
-            wf_created = "" if isinstance(wf, str) else wf.get("created_at", "")
+            # WorkflowFile schema: name, mtime (not created_at)
+            wf_created = "" if isinstance(wf, str) else wf.get("mtime", "")
             is_suspicious = (
                 os.path.basename(wf_name).lower() == "discussion.yaml"
                 or (wf_created and wf_created >= incident_window_start)
@@ -128,17 +136,15 @@ def analyze_propagation(collection: dict, definitions: dict) -> PropagationRepor
     npm_publishes = prop_data.get("npm_publish") or []
     for pub in npm_publishes:
         if isinstance(pub, str):
-            pkg, version = pub, ""
+            log_line = pub
         else:
-            pkg = pub.get("package", str(pub))
-            version = pub.get("version", "")
-        desc = f"Pacote npm publicado durante a janela do incidente: {pkg}"
-        if version:
-            desc += f"@{version}"
+            # NpmPublishLog schema: log_file, log_time, line (raw log line containing "publish")
+            log_line = pub.get("line") or pub.get("log_file", str(pub))
+        desc = f"Pacote npm publicado durante a janela do incidente: {log_line}"
         findings.append(PropagationFinding(
             finding_type="npm_publish",
             severity="HIGH",
-            path_or_url=f"https://www.npmjs.com/package/{pkg}",
+            path_or_url="https://www.npmjs.com/settings/~/tokens",
             timestamp=incident_window_start,
             description=desc,
             recommended_action=npm_defn.get("recommended_action", "Deprecar ou despublicar imediatamente."),
@@ -149,7 +155,8 @@ def analyze_propagation(collection: dict, definitions: dict) -> PropagationRepor
     exfil_defn = prop_defs.get("exfil_repo", {})
     suspicious_repos = prop_data.get("suspicious_repos") or []
     for repo_entry in suspicious_repos:
-        url = repo_entry if isinstance(repo_entry, str) else repo_entry.get("url", str(repo_entry))
+        # SuspiciousRepo schema: name, description, created_at, html_url, match_pattern
+        url = repo_entry if isinstance(repo_entry, str) else repo_entry.get("html_url", repo_entry.get("name", str(repo_entry)))
         findings.append(PropagationFinding(
             finding_type="exfil_repo",
             severity="HIGH",

@@ -50,10 +50,19 @@ a integridade da coleta estiver em dúvida.
 
 ### path_or_url em findings de propagação
 
-Valores de path_or_url provenientes do collection.json são
-sanitizados via os.path.basename antes de uso em construção
-de paths. São usados apenas para display no relatório HTML —
-nenhuma operação de arquivo é executada sobre eles.
+Valores de path_or_url são usados apenas para display no
+relatório HTML — nenhuma operação de arquivo é executada
+sobre eles. Autoescape Jinja2 previne XSS.
+
+Sanitização aplicada:
+- Nomes de arquivo (hooks, workflows) passam por
+  os.path.basename via _safe_filename() antes de serem
+  incorporados a caminhos de display.
+- repo_path provém do host comprometido (não confiável)
+  e NÃO é sanitizado — um collection.json adulterado
+  pode conter caminhos enganosos (ex: ../../etc/passwd).
+  Isso afeta apenas o display; nenhuma operação de I/O
+  usa esses valores.
 
 ### javascript: scheme em URLs
 
