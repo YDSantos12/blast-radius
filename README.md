@@ -33,7 +33,7 @@ A Burn List é o output do engine — um arquivo HTML que abre em qualquer brows
 
 Se a máquina publicou um pacote, registrou um self-hosted runner do GitHub Actions, injetou um arquivo de workflow, ou criou repositórios de exfiltração — o relatório sinaliza em seção separada. Cada ocorrência inclui severidade e ação necessária. Isso é relevante porque a máquina comprometida pode ser a origem da próxima onda.
 
-O BLAST-RADIUS não tenta provar exfiltração. Tudo acessível ao processo do usuário comprometido é tratado como exposto, em conformidade com o modelo assume-breach do NIST SP 800-61.
+O BLAST-RADIUS não tenta provar exfiltração. Adota o princípio assume-breach do Zero Trust (NIST SP 800-207): tudo acessível ao processo do usuário comprometido é tratado como exposto. A revogação priorizada alinha-se à fase de contenção do NIST SP 800-61 (Incident Response).
 
 ## Uso
 
@@ -123,7 +123,7 @@ python main.py analyze --help
 
 ## Limitações
 
-**A coleta não prova exfiltração.** O BLAST-RADIUS assume que tudo acessível ao usuário foi lido. Provar que um arquivo específico foi lido por um processo específico não é possível no Windows sem telemetria de file-read — não capturada por configurações padrão do Sysmon. A postura assume-breach é intencional e alinhada ao NIST SP 800-61.
+**A coleta não prova exfiltração.** O BLAST-RADIUS assume que tudo acessível ao usuário foi lido. Provar que um arquivo específico foi lido por um processo específico não é possível no Windows sem telemetria de file-read — não capturada por configurações padrão do Sysmon. A postura assume-breach adota o princípio Zero Trust (NIST SP 800-207) e alinha-se à fase de contenção do NIST SP 800-61 (Incident Response).
 
 **Resolução de autoridade online não está implementada no v0.1.** O collector não persiste valores brutos de token — valores redatados não podem ser usados para chamar APIs do GitHub ou npm. Tokens GitHub recebem tier REVOGAR AGORA por padrão, independente do escopo real. Resolução online está planejada para o v0.2.
 
@@ -165,4 +165,4 @@ Entre outubro de 2025 e 2026, o worm GlassWorm se propagou via extensões VS Cod
 
 MIT
 
-O BLAST-RADIUS é um auxílio forense, não um instrumento legal. Os tiers da Burn List representam avaliação de risco operacional sob um modelo assume-breach conforme o NIST SP 800-61 — não são prova de comprometimento ou exfiltração. As decisões de revogação são responsabilidade do analista e do incident commander. Não execute o collector em hosts sem autorização.
+O BLAST-RADIUS é um auxílio forense, não um instrumento legal. Os tiers da Burn List representam avaliação de risco operacional sob o princípio assume-breach do Zero Trust (NIST SP 800-207), aplicado à fase de contenção do NIST SP 800-61 (Incident Response) — não são prova de comprometimento ou exfiltração. As decisões de revogação são responsabilidade do analista e do incident commander. Não execute o collector em hosts sem autorização.

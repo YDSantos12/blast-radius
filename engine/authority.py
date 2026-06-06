@@ -247,7 +247,7 @@ def assign_tier(item: InventoryItem) -> tuple[ExposureTier, str]:
         if prefix.startswith(("gho_", "ghp_", "github_pat_", "ghs_")):
             return ExposureTier.REVOKE_NOW, (
                 "OAuth/PAT do GitHub — escopo desconhecido offline. "
-                "REVOGAR AGORA por padrão conforme NIST SP 800-61 assume-breach."
+                "REVOGAR AGORA por padrão — princípio assume-breach (NIST SP 800-207)."
             )
 
     if ctype == "ssh_key":

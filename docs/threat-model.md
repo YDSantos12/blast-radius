@@ -3,9 +3,11 @@
 ## Premissa operacional
 
 BLAST-RADIUS assume comprometimento total (assume-breach)
-conforme NIST SP 800-61. A ferramenta não tenta provar
+conforme o princípio Zero Trust (NIST SP 800-207). A ferramenta não tenta provar
 exfiltração — assume que tudo acessível ao processo do
 usuário comprometido foi lido e potencialmente exfiltrado.
+A revogação priorizada de credenciais alinha-se à fase de
+contenção do NIST SP 800-61 (Incident Response).
 
 ## Campanhas que motivaram o desenvolvimento
 

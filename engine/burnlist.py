@@ -14,9 +14,12 @@ from models import (
 )
 
 DISCLAIMER = (
-    "BLAST-RADIUS assume comprometimento total conforme as diretrizes do "
-    "NIST SP 800-61 para contenção de incidentes. A ausência de evidências "
-    "não isenta uma credencial. Os scores de correlação são indicadores "
+    "BLAST-RADIUS adota o princípio assume-breach do modelo Zero Trust "
+    "(NIST SP 800-207): tudo que era acessível ao processo do usuário "
+    "comprometido é tratado como exposto, independentemente de haver "
+    "evidência de exfiltração. A revogação priorizada de credenciais "
+    "alinha-se à fase de contenção do NIST SP 800-61 (Incident Response). "
+    "A ausência de evidências não isenta uma credencial. Os scores de correlação são indicadores "
     "heurísticos derivados da telemetria disponível — score 0 não indica "
     "segurança. Todas as credenciais acessíveis ao processo do usuário "
     "comprometido devem ser tratadas como expostas até serem revogadas. "
