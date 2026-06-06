@@ -139,6 +139,28 @@ Em novembro de 2025, o worm Shai-Hulud 2.0 comprometeu pacotes npm com scripts `
 
 Entre outubro de 2025 e 2026, o worm GlassWorm se propagou via extensões VS Code. Caracteres Unicode invisíveis escondiam um loader de segundo estágio. O C2 operava via blockchain Solana e Google Calendar. Persistência via Run keys do Windows. O BLAST-RADIUS inventaria o estado de extensões VS Code e modificações em Run keys.
 
+## Screenshots
+
+**Collector em execução na máquina comprometida (VM isolada, sem internet)**
+
+![Collector iniciando módulos de coleta](screenshots/collector-running.png)
+
+**Output completo da coleta — módulos, aviso de dados sensíveis e caminho do JSON**
+
+![Output do collector com todos os módulos concluídos](screenshots/collector-output.png)
+
+**Burn List — header com metadados da coleta e banner de propagação detectada**
+
+![Header da Burn List com FONTE DE PROPAGAÇÃO DETECTADA](screenshots/burnlist-header.png)
+
+**Seção de propagação — runner SHA1HULUD identificado com referência ao Shai-Hulud 2.0**
+
+![Propagação crítica: runner_registration SHA1HULUD](screenshots/burnlist-propagation.png)
+
+**Credenciais REVOGAR AGORA — npm token, AWS IAM e chave SSH com autoridade resolvida**
+
+![Três credenciais no tier REVOGAR AGORA com URLs de revogação](screenshots/burnlist-revoke.png)
+
 ---
 
 MIT
