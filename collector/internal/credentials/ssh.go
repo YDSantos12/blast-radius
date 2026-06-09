@@ -6,21 +6,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
-func collectSSH() []CredentialItem {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	sshDir := filepath.Join(home, ".ssh")
+func collectSSH(p profile.Profile) []CredentialItem {
+	sshDir := filepath.Join(p.Path, ".ssh")
 
 	entries, err := os.ReadDir(sshDir)
 	if err != nil {
 		return nil
 	}
 
-	hostMap := parseSSHConfig(filepath.Join(sshDir, "config"))
+	hostMap := parseSSHConfig(filepath.Join(sshDir, "config"), p.Path)
 	knownHosts := sampleKnownHosts(filepath.Join(sshDir, "known_hosts"))
 
 	var items []CredentialItem
@@ -28,8 +26,8 @@ func collectSSH() []CredentialItem {
 		if e.IsDir() {
 			continue
 		}
-		p := filepath.Join(sshDir, e.Name())
-		keyType, encrypted, ok := inspectSSHKey(p)
+		path := filepath.Join(sshDir, e.Name())
+		keyType, encrypted, ok := inspectSSHKey(path)
 		if !ok {
 			continue
 		}
@@ -42,12 +40,12 @@ func collectSSH() []CredentialItem {
 
 		// use the filename as the value for hashing/redaction since
 		// private key material itself should never be read into memory
-		item := NewCredentialItem("ssh_key", p, e.Name())
+		item := NewCredentialItem(p.Username, "ssh_key", path, e.Name())
 		item.FoundAt = mtime
 		item.Context = map[string]any{
-			"key_type":          keyType,
-			"has_passphrase":    encrypted,
-			"configured_hosts":  hostMap[e.Name()],
+			"key_type":           keyType,
+			"has_passphrase":     encrypted,
+			"configured_hosts":   hostMap[e.Name()],
 			"known_hosts_sample": knownHosts,
 		}
 		items = append(items, item)
@@ -107,7 +105,7 @@ func classifyKeyType(content string) string {
 
 // parseSSHConfig returns a map of private key filename → []hosts it is
 // configured for. Only IdentityFile directives are parsed.
-func parseSSHConfig(path string) map[string][]string {
+func parseSSHConfig(path, home string) map[string][]string {
 	result := map[string][]string{}
 	f, err := os.Open(path)
 	if err != nil {
@@ -132,7 +130,7 @@ func parseSSHConfig(path string) map[string][]string {
 			if len(fields) < 2 {
 				continue
 			}
-			keyPath := expandHome(fields[1])
+			keyPath := expandHome(fields[1], home)
 			keyFile := filepath.Base(keyPath)
 			result[keyFile] = append(result[keyFile], currentHosts...)
 		}
@@ -170,12 +168,8 @@ func sampleKnownHosts(path string) []string {
 	return hosts
 }
 
-func expandHome(p string) string {
+func expandHome(p, home string) string {
 	if strings.HasPrefix(p, "~/") || p == "~" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return p
-		}
 		return filepath.Join(home, p[2:])
 	}
 	return p

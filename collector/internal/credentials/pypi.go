@@ -5,17 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
-func collectPyPI() []CredentialItem {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	return parsePypirc(filepath.Join(home, ".pypirc"))
+func collectPyPI(p profile.Profile) []CredentialItem {
+	return parsePypirc(p.Username, filepath.Join(p.Path, ".pypirc"))
 }
 
-func parsePypirc(path string) []CredentialItem {
+func parsePypirc(sourceUser, path string) []CredentialItem {
 	sections := parseINIFile(path)
 	if len(sections) == 0 {
 		return nil
@@ -56,7 +54,7 @@ func parsePypirc(path string) []CredentialItem {
 		repoURL := fields["repository"]
 		username := fields["username"]
 
-		item := NewCredentialItem("pypi_token", path, password)
+		item := NewCredentialItem(sourceUser, "pypi_token", path, password)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
 			"repository": repoURL,

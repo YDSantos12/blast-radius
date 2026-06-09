@@ -11,7 +11,7 @@ var sensitiveNamePatterns = []string{
 	"TOKEN", "SECRET", "KEY", "PASSWORD", "CREDENTIAL", "API_KEY",
 }
 
-// excludedPrefixes avoids flagging well-known non-secret variables that
+// excludedNames avoids flagging well-known non-secret variables that
 // happen to contain a matched substring (e.g. PATH → no; PRIVATEKEY → yes).
 var excludedNames = map[string]bool{
 	"PATH":            true,
@@ -20,7 +20,12 @@ var excludedNames = map[string]bool{
 	"PROCESSOR_LEVEL": true,
 }
 
-func collectEnvVars() []CredentialItem {
+// collectEnvVars scans the running process environment for secret-looking
+// variables. It is process-scoped: when running as SYSTEM with
+// -scan-all-users, these are SYSTEM's env vars, not the compromised user's.
+// sourceUser should be "SYSTEM_process" in that case so the analyst can
+// distinguish the result from a genuine user-process scan.
+func collectEnvVars(sourceUser string) []CredentialItem {
 	var items []CredentialItem
 	seen := map[string]bool{}
 
@@ -53,7 +58,7 @@ func collectEnvVars() []CredentialItem {
 		}
 		seen[v] = true
 
-		item := NewCredentialItem("env_secret", "env:"+k, v)
+		item := NewCredentialItem(sourceUser, "env_secret", "env:"+k, v)
 		item.Context = map[string]any{
 			"var_name": k,
 		}

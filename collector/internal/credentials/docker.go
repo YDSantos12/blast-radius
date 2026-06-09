@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
-func collectDocker() []CredentialItem {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	return parseDockerConfig(filepath.Join(home, ".docker", "config.json"))
+func collectDocker(p profile.Profile) []CredentialItem {
+	return parseDockerConfig(p.Username, filepath.Join(p.Path, ".docker", "config.json"))
 }
 
 type dockerConfig struct {
@@ -25,7 +23,7 @@ type dockerAuth struct {
 	Password string `json:"password"`
 }
 
-func parseDockerConfig(path string) []CredentialItem {
+func parseDockerConfig(sourceUser, path string) []CredentialItem {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
@@ -51,7 +49,7 @@ func parseDockerConfig(path string) []CredentialItem {
 	// file — auth entries will be empty. We still record the registries so
 	// the analyst knows which registries have stored credentials.
 	if cfg.CredStore != "" {
-		item := NewCredentialItem("docker_credential", path, cfg.CredStore)
+		item := NewCredentialItem(sourceUser, "docker_credential", path, cfg.CredStore)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
 			"registries": registries,
@@ -70,7 +68,7 @@ func parseDockerConfig(path string) []CredentialItem {
 		if value == "" {
 			continue
 		}
-		item := NewCredentialItem("docker_credential", path, value)
+		item := NewCredentialItem(sourceUser, "docker_credential", path, value)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
 			"registries": []string{registry},

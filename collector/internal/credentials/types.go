@@ -11,6 +11,7 @@ type CredentialItem struct {
 	ID            string         `json:"id"`
 	Type          string         `json:"type"`
 	Path          string         `json:"path"`
+	SourceUser    string         `json:"source_user,omitempty"`
 	ValueRedacted string         `json:"value_redacted"`
 	ValueHash     string         `json:"value_hash"`
 	FoundAt       string         `json:"found_at"`
@@ -19,7 +20,7 @@ type CredentialItem struct {
 	ExposureTier  string         `json:"exposure_tier"`
 }
 
-func NewCredentialItem(credType, path, rawValue string) CredentialItem {
+func NewCredentialItem(sourceUser, credType, path, rawValue string) CredentialItem {
 	idHash := sha256.Sum256([]byte(credType + path))
 	valHash := sha256.Sum256([]byte(rawValue))
 
@@ -27,6 +28,7 @@ func NewCredentialItem(credType, path, rawValue string) CredentialItem {
 		ID:            fmt.Sprintf("%x", idHash),
 		Type:          credType,
 		Path:          path,
+		SourceUser:    sourceUser,
 		ValueRedacted: redact(rawValue),
 		ValueHash:     fmt.Sprintf("%x", valHash),
 		FoundAt:       time.Now().UTC().Format(time.RFC3339),

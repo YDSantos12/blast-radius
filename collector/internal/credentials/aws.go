@@ -5,23 +5,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
-func collectAWS() []CredentialItem {
+func collectAWS(p profile.Profile) []CredentialItem {
 	var items []CredentialItem
-	items = append(items, collectAWSFiles()...)
-	items = append(items, collectAWSEnv()...)
+	items = append(items, collectAWSFiles(p)...)
+	items = append(items, collectAWSEnv(p.Username)...)
 	return items
 }
 
-func collectAWSFiles() []CredentialItem {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-
-	credPath := filepath.Join(home, ".aws", "credentials")
-	cfgPath := filepath.Join(home, ".aws", "config")
+func collectAWSFiles(p profile.Profile) []CredentialItem {
+	credPath := filepath.Join(p.Path, ".aws", "credentials")
+	cfgPath := filepath.Join(p.Path, ".aws", "config")
 
 	profiles := parseINIFile(credPath)
 	configs := parseINIFile(cfgPath)
@@ -31,7 +28,7 @@ func collectAWSFiles() []CredentialItem {
 
 	var items []CredentialItem
 
-	for profile, fields := range profiles {
+	for prof, fields := range profiles {
 		keyID := fields["aws_access_key_id"]
 		secret := fields["aws_secret_access_key"]
 		sessionToken := fields["aws_session_token"]
@@ -52,15 +49,15 @@ func collectAWSFiles() []CredentialItem {
 			mtime = info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
 		}
 
-		item := NewCredentialItem("aws_key", credPath, value)
+		item := NewCredentialItem(p.Username, "aws_key", credPath, value)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
-			"profile":           profile,
+			"profile":           prof,
 			"key_id_prefix":     safePrefix(keyID, 8),
 			"has_session_token": sessionToken != "",
 			"source":            "file",
-			"sso_configured":    ssoProfiles[profile],
-			"role_arn":          roleARNs[profile],
+			"sso_configured":    ssoProfiles[prof],
+			"role_arn":          roleARNs[prof],
 		}
 		items = append(items, item)
 	}
@@ -68,11 +65,14 @@ func collectAWSFiles() []CredentialItem {
 	return items
 }
 
-func collectAWSEnv() []CredentialItem {
+// collectAWSEnv reads AWS credentials from the running process environment.
+// These are process-scoped, not profile-scoped. sourceUser identifies whose
+// context produced them (the running user, or "SYSTEM_process").
+func collectAWSEnv(sourceUser string) []CredentialItem {
 	keyID := os.Getenv("AWS_ACCESS_KEY_ID")
 	secret := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	session := os.Getenv("AWS_SESSION_TOKEN")
-	profile := os.Getenv("AWS_PROFILE")
+	prof := os.Getenv("AWS_PROFILE")
 
 	if keyID == "" && secret == "" {
 		return nil
@@ -83,9 +83,9 @@ func collectAWSEnv() []CredentialItem {
 		value = keyID
 	}
 
-	item := NewCredentialItem("aws_key", "env:AWS_ACCESS_KEY_ID", value)
+	item := NewCredentialItem(sourceUser, "aws_key", "env:AWS_ACCESS_KEY_ID", value)
 	item.Context = map[string]any{
-		"profile":           profile,
+		"profile":           prof,
 		"key_id_prefix":     safePrefix(keyID, 8),
 		"has_session_token": session != "",
 		"source":            "env",

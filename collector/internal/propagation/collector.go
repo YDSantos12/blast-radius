@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
 type PropagationState struct {
@@ -55,14 +57,26 @@ var (
 	exfilDescTerms = []string{"shai-hulud", "second coming", "sha1hulud"}
 )
 
-// Collect detects propagation evidence. repoPaths is from git.GitState.RepoPaths().
+// Collect detects propagation evidence across all provided profiles.
+// repoPaths is the merged list from all profiles' git states (from git.GitState.RepoPaths()).
+// profiles provides home directories for npm log and runner registration scanning.
 // If resolveOnline is true and githubToken is non-empty, the GitHub API is called
 // to check for newly-created repositories matching exfil patterns.
-func Collect(incidentWindowStart time.Time, repoPaths []string, resolveOnline bool, githubToken string) PropagationState {
+func Collect(
+	incidentWindowStart time.Time,
+	repoPaths []string,
+	resolveOnline bool,
+	githubToken string,
+	profiles []profile.Profile,
+) PropagationState {
 	state := PropagationState{}
-	state.NpmPublish = scanNpmPublishLogs(incidentWindowStart)
+
+	for _, p := range profiles {
+		state.NpmPublish = append(state.NpmPublish, scanNpmPublishLogs(incidentWindowStart, p.Path)...)
+		state.RunnerRegistrations = append(state.RunnerRegistrations, scanRunnerRegistrations(p.Path)...)
+	}
+
 	state.WorkflowInjections = scanWorkflowInjections(incidentWindowStart, repoPaths)
-	state.RunnerRegistrations = scanRunnerRegistrations()
 
 	if resolveOnline && githubToken != "" {
 		state.OnlineCheckDone = true
@@ -87,12 +101,8 @@ func Collect(incidentWindowStart time.Time, repoPaths []string, resolveOnline bo
 	return state
 }
 
-func scanNpmPublishLogs(since time.Time) []NpmPublishLog {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	entries, err := os.ReadDir(filepath.Join(home, ".npm", "_logs"))
+func scanNpmPublishLogs(since time.Time, homePath string) []NpmPublishLog {
+	entries, err := os.ReadDir(filepath.Join(homePath, ".npm", "_logs"))
 	if err != nil {
 		return nil
 	}
@@ -106,7 +116,7 @@ func scanNpmPublishLogs(since time.Time) []NpmPublishLog {
 		if !since.IsZero() && !logTime.IsZero() && logTime.Before(since) {
 			continue
 		}
-		logPath := filepath.Join(home, ".npm", "_logs", e.Name())
+		logPath := filepath.Join(homePath, ".npm", "_logs", e.Name())
 		for _, line := range scanLogForPublish(logPath) {
 			ts := ""
 			if !logTime.IsZero() {
@@ -271,16 +281,11 @@ func scanWorkflowInjections(since time.Time, repoPaths []string) []WorkflowInjec
 	return results
 }
 
-func scanRunnerRegistrations() []RunnerReg {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-
+func scanRunnerRegistrations(homePath string) []RunnerReg {
 	var regs []RunnerReg
 	for _, base := range []string{
-		filepath.Join(home, ".actions-runner"),
-		filepath.Join(home, "actions-runner"),
+		filepath.Join(homePath, ".actions-runner"),
+		filepath.Join(homePath, "actions-runner"),
 	} {
 		data, err := os.ReadFile(filepath.Join(base, ".runner"))
 		if err != nil {

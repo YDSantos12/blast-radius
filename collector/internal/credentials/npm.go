@@ -5,38 +5,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
-func collectNPM() []CredentialItem {
+func collectNPM(p profile.Profile) []CredentialItem {
 	var items []CredentialItem
-
-	roots := npmrcCandidates()
 	seen := map[string]bool{}
 
-	for _, root := range roots {
-		candidates, _ := findNpmrcFiles(root)
-		for _, p := range candidates {
-			if seen[p] {
-				continue
-			}
-			seen[p] = true
-			items = append(items, parseNpmrc(p)...)
+	candidates, _ := findNpmrcFiles(p.Path)
+	for _, path := range candidates {
+		if seen[path] {
+			continue
 		}
+		seen[path] = true
+		items = append(items, parseNpmrc(p.Username, path)...)
 	}
 
 	return items
-}
-
-func npmrcCandidates() []string {
-	var roots []string
-	if home, err := os.UserHomeDir(); err == nil {
-		roots = append(roots, home)
-	}
-	// Windows: USERPROFILE may differ from os.UserHomeDir in edge cases
-	if up := os.Getenv("USERPROFILE"); up != "" {
-		roots = append(roots, up)
-	}
-	return roots
 }
 
 // findNpmrcFiles returns the home .npmrc plus any .npmrc up to 2 levels deep.
@@ -76,7 +62,7 @@ func findNpmrcFiles(home string) ([]string, error) {
 	return found, nil
 }
 
-func parseNpmrc(path string) []CredentialItem {
+func parseNpmrc(sourceUser, path string) []CredentialItem {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil
@@ -122,7 +108,7 @@ func parseNpmrc(path string) []CredentialItem {
 
 		registry, scope := parseNpmrcPrefix(prefix)
 
-		item := NewCredentialItem("npm_token", path, token)
+		item := NewCredentialItem(sourceUser, "npm_token", path, token)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
 			"registry":           registry,

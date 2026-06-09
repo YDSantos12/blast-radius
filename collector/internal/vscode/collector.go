@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blast-radius/collector/internal/profile"
 	_ "modernc.org/sqlite"
 )
 
@@ -61,9 +62,9 @@ type vscodeDirs struct {
 	globalStorage string
 }
 
-func Collect() VSCodeState {
+func Collect(p profile.Profile) VSCodeState {
 	var state VSCodeState
-	for _, d := range vscodePaths() {
+	for _, d := range vscodePaths(p) {
 		state.Extensions = append(state.Extensions, collectExtensions(d.extensions)...)
 		state.StateDBSecrets = append(state.StateDBSecrets, collectStateDB(filepath.Join(d.globalStorage, "state.vscdb"))...)
 		state.StorageFlags = append(state.StorageFlags, scanExtensionStorage(d.globalStorage)...)
@@ -71,43 +72,41 @@ func Collect() VSCodeState {
 	return state
 }
 
-func vscodePaths() []vscodeDirs {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
+func vscodePaths(p profile.Profile) []vscodeDirs {
 	var dirs []vscodeDirs
 	switch runtime.GOOS {
 	case "windows":
-		appdata := os.Getenv("APPDATA")
+		// Derive APPDATA from the profile path rather than os.Getenv("APPDATA")
+		// so that SYSTEM-context scans resolve the correct per-user location.
+		appdata := p.AppData()
 		if appdata != "" {
 			dirs = append(dirs,
 				vscodeDirs{
-					extensions:    filepath.Join(home, ".vscode", "extensions"),
+					extensions:    filepath.Join(p.Path, ".vscode", "extensions"),
 					globalStorage: filepath.Join(appdata, "Code", "User", "globalStorage"),
 				},
 				vscodeDirs{
-					extensions:    filepath.Join(home, ".vscode-insiders", "extensions"),
+					extensions:    filepath.Join(p.Path, ".vscode-insiders", "extensions"),
 					globalStorage: filepath.Join(appdata, "Code - Insiders", "User", "globalStorage"),
 				},
 			)
 		}
 	case "darwin":
-		base := filepath.Join(home, "Library", "Application Support")
+		base := filepath.Join(p.Path, "Library", "Application Support")
 		dirs = append(dirs,
 			vscodeDirs{
-				extensions:    filepath.Join(home, ".vscode", "extensions"),
+				extensions:    filepath.Join(p.Path, ".vscode", "extensions"),
 				globalStorage: filepath.Join(base, "Code", "User", "globalStorage"),
 			},
 			vscodeDirs{
-				extensions:    filepath.Join(home, ".vscode-insiders", "extensions"),
+				extensions:    filepath.Join(p.Path, ".vscode-insiders", "extensions"),
 				globalStorage: filepath.Join(base, "Code - Insiders", "User", "globalStorage"),
 			},
 		)
 	default:
 		dirs = append(dirs, vscodeDirs{
-			extensions:    filepath.Join(home, ".vscode", "extensions"),
-			globalStorage: filepath.Join(home, ".config", "Code", "User", "globalStorage"),
+			extensions:    filepath.Join(p.Path, ".vscode", "extensions"),
+			globalStorage: filepath.Join(p.Path, ".config", "Code", "User", "globalStorage"),
 		})
 	}
 	return dirs

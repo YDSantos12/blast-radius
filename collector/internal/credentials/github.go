@@ -5,15 +5,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
-func collectGitHub() []CredentialItem {
+func collectGitHub(p profile.Profile) []CredentialItem {
 	var items []CredentialItem
 	seen := map[string]bool{}
 
@@ -25,29 +28,29 @@ func collectGitHub() []CredentialItem {
 		items = append(items, item)
 	}
 
-	for _, item := range collectGHCLI() {
+	for _, item := range collectGHCLI(p) {
 		add(item)
 	}
-	for _, item := range collectGitCredentials() {
+	for _, item := range collectGitCredentials(p) {
 		add(item)
 	}
-	for _, item := range collectCredentialHelper() {
+	for _, item := range collectCredentialHelper(p.Username) {
 		add(item)
 	}
 
 	return items
 }
 
-func collectGHCLI() []CredentialItem {
-	paths := ghCLIHostsPaths()
+func collectGHCLI(p profile.Profile) []CredentialItem {
+	paths := ghCLIHostsPaths(p)
 	var items []CredentialItem
 
-	for _, p := range paths {
-		entries, err := parseGHHostsYAML(p)
+	for _, path := range paths {
+		entries, err := parseGHHostsYAML(path)
 		if err != nil {
 			continue
 		}
-		info, _ := os.Stat(p)
+		info, _ := os.Stat(path)
 		var mtime string
 		if info != nil {
 			mtime = info.ModTime().UTC().Format(time.RFC3339)
@@ -56,7 +59,7 @@ func collectGHCLI() []CredentialItem {
 			if entry.token == "" {
 				continue
 			}
-			item := NewCredentialItem("github_pat", p, entry.token)
+			item := NewCredentialItem(p.Username, "github_pat", path, entry.token)
 			item.FoundAt = mtime
 			item.Context = map[string]any{
 				"source":       "gh_cli",
@@ -78,9 +81,10 @@ type ghHostEntry struct {
 // parseGHHostsYAML parses the gh CLI hosts.yml without an external YAML library.
 //
 // The format is a fixed two-level structure:
-//   hostname:
-//     oauth_token: <value>
-//     user: <value>
+//
+//	hostname:
+//	  oauth_token: <value>
+//	  user: <value>
 //
 // A full YAML parser would be more correct, but the format has been stable
 // since gh CLI v1 and a line scanner avoids an external dependency.
@@ -138,26 +142,24 @@ func parseGHHostsYAML(path string) (map[string]ghHostEntry, error) {
 	return result, nil
 }
 
-func ghCLIHostsPaths() []string {
+func ghCLIHostsPaths(p profile.Profile) []string {
 	var paths []string
-	if home, err := os.UserHomeDir(); err == nil {
-		paths = append(paths, filepath.Join(home, ".config", "gh", "hosts.yml"))
-	}
+	// ~/.config/gh/hosts.yml — cross-platform location
+	paths = append(paths, filepath.Join(p.Path, ".config", "gh", "hosts.yml"))
 	if runtime.GOOS == "windows" {
-		if appdata := os.Getenv("APPDATA"); appdata != "" {
+		// Windows also stores the config under %APPDATA%\GitHub CLI\hosts.yml.
+		// Derive from the profile path rather than os.Getenv("APPDATA") so that
+		// SYSTEM-context scans resolve the correct per-user path.
+		if appdata := p.AppData(); appdata != "" {
 			paths = append(paths, filepath.Join(appdata, "GitHub CLI", "hosts.yml"))
 		}
 	}
 	return paths
 }
 
-func collectGitCredentials() []CredentialItem {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	p := filepath.Join(home, ".git-credentials")
-	f, err := os.Open(p)
+func collectGitCredentials(p profile.Profile) []CredentialItem {
+	path := filepath.Join(p.Path, ".git-credentials")
+	f, err := os.Open(path)
 	if err != nil {
 		return nil
 	}
@@ -183,7 +185,7 @@ func collectGitCredentials() []CredentialItem {
 		if token == "" {
 			continue
 		}
-		item := NewCredentialItem("github_pat", p, token)
+		item := NewCredentialItem(p.Username, "github_pat", path, token)
 		item.FoundAt = mtime
 		item.Context = map[string]any{
 			"source":       "git_credentials",
@@ -214,18 +216,43 @@ func extractGitCredential(line string) (token, user string) {
 	return userInfo[colonIdx+1:], userInfo[:colonIdx]
 }
 
-func collectCredentialHelper() []CredentialItem {
+func collectCredentialHelper(sourceUser string) []CredentialItem {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// git credential fill is the one exec the collector performs.
-	// Strict 2s timeout prevents blocking on a hung credential helper.
 	cmd := exec.CommandContext(ctx, "git", "credential", "fill")
 	cmd.Stdin = bytes.NewBufferString("protocol=https\nhost=github.com\n\n")
-	out, err := cmd.Output()
+
+	// Use StdoutPipe + goroutine instead of cmd.Output() to avoid a hang
+	// specific to Windows: when git.exe invokes a credential helper (e.g. GCM)
+	// as a grandchild, TerminateProcess on git.exe leaves GCM alive and holding
+	// the inherited stdout pipe. cmd.Output() then waits forever for the pipe to
+	// close, consuming the entire module timeout.
+	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil
 	}
+	if err := cmd.Start(); err != nil {
+		return nil
+	}
+
+	done := make(chan []byte, 1)
+	go func() {
+		data, _ := io.ReadAll(pipe)
+		done <- data
+	}()
+
+	var out []byte
+	select {
+	case out = <-done:
+	case <-ctx.Done():
+		// Force-close the pipe so the goroutine above unblocks and can exit.
+		// Kill is best-effort; GCM may outlive git.exe anyway.
+		_ = pipe.Close()
+		_ = cmd.Process.Kill()
+		return nil
+	}
+	_ = cmd.Wait()
 
 	var user, password string
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -245,7 +272,7 @@ func collectCredentialHelper() []CredentialItem {
 		return nil
 	}
 
-	item := NewCredentialItem("github_pat", "credential_helper:github.com", password)
+	item := NewCredentialItem(sourceUser, "github_pat", "credential_helper:github.com", password)
 	item.Context = map[string]any{
 		"source":       "credential_helper",
 		"user":         user,

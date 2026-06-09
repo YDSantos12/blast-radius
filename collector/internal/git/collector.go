@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/blast-radius/collector/internal/profile"
 )
 
 type GitState struct {
@@ -44,14 +46,9 @@ type RunnerArtifact struct {
 	Type string `json:"type"`
 }
 
-func Collect() GitState {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return GitState{}
-	}
-
-	cfg := collectGlobalConfig(home)
-	repos := discoverRepos(home, 3)
+func Collect(p profile.Profile) GitState {
+	cfg := collectGlobalConfig(p.Path)
+	repos := discoverRepos(p.Path, 3)
 
 	var repoInfos []RepoInfo
 	for _, rp := range repos {
@@ -61,7 +58,7 @@ func Collect() GitState {
 	return GitState{
 		GlobalConfig:    cfg,
 		Repos:           repoInfos,
-		RunnerArtifacts: collectRunnerArtifacts(home),
+		RunnerArtifacts: collectRunnerArtifacts(p.Path),
 	}
 }
 
